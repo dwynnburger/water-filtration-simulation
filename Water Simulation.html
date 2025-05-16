@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Water Filtration Process</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            overscroll-behavior: none; /* Prevents pull-to-refresh on mobile */
+        }
+        .draggable {
+            cursor: grab;
+            user-select: none; /* Prevent text selection when dragging */
+        }
+        .draggable:active {
+            cursor: grabbing;
+        }
+        .drop-zone {
+            border: 2px dashed #ccc;
+            min-height: 80px; /* Ensure drop zones have a minimum height */
+            transition: background-color 0.3s ease;
+        }
+        .drop-zone.drag-over {
+            background-color: #e0f7fa; /* Light cyan when dragging over */
+            border-color: #007bff;
+        }
+        .material-placeholder {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-style: italic;
+            color: #999;
+        }
+        .material-item {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            text-align: center;
+            padding: 8px;
+            box-sizing: border-box; /* Ensure padding is included in height/width */
+        }
+        .material-gravel { background-color: #a0a0a0; color: white; border-radius: 8px; }
+        .material-sand { background-color: #f0e68c; color: #333; border-radius: 8px; }
+        .material-charcoal { background-color: #36454F; color: white; border-radius: 8px; }
+
+        .water-container {
+            border: 2px solid #007bff;
+            border-radius: 8px;
+            overflow: hidden; /* Clip water animation */
+            position: relative;
+        }
+        .water {
+            width: 100%;
+            height: 0; /* Initially no water */
+            transition: height 1s ease-in-out, background-color 1s ease-in-out;
+            position: absolute;
+            bottom: 0;
+        }
+        .dirty-water { background-color: #8B4513; } /* Brown for dirty water */
+        .clean-water { background-color: #ADD8E6; } /* Light blue for clean water */
+        .cloudy-water { background-color: #D2B48C; } /* Tan for cloudy water */
+
+        .feedback-box {
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-top: 15px;
+            border-radius: 8px;
+            min-height: 60px;
+        }
+        .correct { background-color: #d4edda; color: #155724; border-color: #c3e6cb;}
+        .incorrect { background-color: #f8d7da; color: #721c24; border-color: #f5c6cb;}
+
+        /* Styling for draggable items container */
+        .materials-source-container {
+            display: flex;
+            flex-wrap: wrap; /* Allow items to wrap on smaller screens */
+            justify-content: space-around;
+            gap: 10px; /* Space between draggable items */
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #f9f9f9;
+        }
+        .materials-source-container .draggable {
+            min-width: 100px; /* Minimum width for draggable items */
+            padding: 15px; /* Increased padding for better touch targets */
+            text-align: center;
+            border-radius: 8px;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+            .simulation-layout {
+                flex-direction: column;
+            }
+            .materials-column, .filter-column-container {
+                width: 100%;
+                margin-bottom: 20px;
+            }
+            .materials-source-container .draggable {
+                width: calc(50% - 10px); /* Two items per row on smaller screens */
+            }
+        }
+         @media (max-width: 480px) {
+            .materials-source-container .draggable {
+                width: 100%; /* One item per row on very small screens */
+            }
+        }
+
+        /* Button styling */
+        .sim-button {
+            padding: 10px 20px;
+            border-radius: 8px;
+            font-weight: 600;
+            color: white;
+            transition: background-color 0.3s ease, transform 0.1s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .sim-button:hover {
+            opacity: 0.9;
+        }
+        .sim-button:active {
+            transform: translateY(1px);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        .run-button { background-color: #28a745; } /* Green */
+        .reset-button { background-color: #ffc107; color: #212529; } /* Yellow */
+        .show-answer-button { background-color: #17a2b8; } /* Teal */
+
+    </style>
+</head>
+<body class="bg-gray-100 p-4 md:p-8">
+    <div class="container mx-auto max-w-4xl bg-white p-6 md:p-8 rounded-xl shadow-2xl">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-blue-700">Water Filtration Process</h1>
+        </header>
+
+        <section class="mb-6">
+            <h2 class="text-xl md:text-2xl font-semibold text-gray-800 mb-2">Why is Water Filtration Important?</h2>
+            <p class="text-gray-700 leading-relaxed">
+                Water filtration is a crucial process that removes impurities from water, making it safe to drink and use.
+                Natural water sources can contain dirt, bacteria, chemicals, and other harmful substances. Filtration helps protect our health and the environment.
+            </p>
+            <h2 class="text-xl md:text-2xl font-semibold text-gray-800 mt-4 mb-2">Instructions</h2>
+            <p class="text-gray-700 leading-relaxed">
+                1. Drag the filtration materials (Gravel, Sand, Charcoal) from the "Available Materials" box into the filter column slots (Top, Middle, Bottom) in the order you think is correct.
+                <br>2. The "Top Layer" is where dirty water will enter first.
+                <br>3. Click the "Run Filtration" button to see if the water becomes clean.
+                <br>4. Use "Reset" to try again, or "Show Answer" for a hint.
+            </p>
+        </section>
+
+        <main class="simulation-layout flex flex-col md:flex-row gap-6 md:gap-8 items-start">
+            <section class="materials-column w-full md:w-1/3">
+                <h3 class="text-lg font-semibold text-gray-800 mb-3 text-center">Available Materials</h3>
+                <div id="materialsSource" class="materials-source-container">
+                    <div id="draggableGravel" draggable="true" class="draggable material-gravel" data-material="gravel">Gravel<p class="text-xs font-normal mt-1">(Removes larger debris)</p></div>
+                    <div id="draggableSand" draggable="true" class="draggable material-sand" data-material="sand">Sand<p class="text-xs font-normal mt-1">(Filters smaller particles)</p></div>
+                    <div id="draggableCharcoal" draggable="true" class="draggable material-charcoal" data-material="charcoal">Charcoal<p class="text-xs font-normal mt-1">(Adsorbs chemicals, odors)</p></div>
+                </div>
+            </section>
+
+            <section class="filter-column-container w-full md:w-1/3">
+                <h3 class="text-lg font-semibold text-gray-800 mb-3 text-center">Filter Column</h3>
+                <div class="bg-gray-200 p-4 rounded-lg shadow-inner">
+                    <div class="text-center mb-2 text-sm font-medium text-gray-600">Dirty Water Input (Top)</div>
+                    <div id="dropZoneTop" class="drop-zone mb-2 rounded-md" data-layer="top">
+                        <span class="material-placeholder">Top Layer</span>
+                    </div>
+                    <div id="dropZoneMiddle" class="drop-zone mb-2 rounded-md" data-layer="middle">
+                        <span class="material-placeholder">Middle Layer</span>
+                    </div>
+                    <div id="dropZoneBottom" class="drop-zone rounded-md" data-layer="bottom">
+                        <span class="material-placeholder">Bottom Layer</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="results-column w-full md:w-1/3">
+                <h3 class="text-lg font-semibold text-gray-800 mb-3 text-center">Filtration Result</h3>
+                <div class="water-container h-48 md:h-60 mx-auto w-3/4 md:w-full relative">
+                    <div id="filteredWater" class="water"></div>
+                    <div class="absolute inset-0 flex items-center justify-center">
+                        <span id="waterQualityText" class="text-white font-bold text-lg hidden"></span>
+                    </div>
+                </div>
+                <div id="feedbackBox" class="feedback-box text-center">
+                    Drag materials and run the filtration!
+                </div>
+            </section>
+        </main>
+
+        <footer class="mt-8 text-center">
+            <button id="runButton" class="sim-button run-button mr-2 mb-2">Run Filtration</button>
+            <button id="resetButton" class="sim-button reset-button mr-2 mb-2">Reset</button>
+            <button id="showAnswerButton" class="sim-button show-answer-button mb-2">Show Answer</button>
+        </footer>
+    </div>
+
+    <script>
+        // DOM Elements
+        const draggables = document.querySelectorAll('.draggable');
+        const dropZones = document.querySelectorAll('.drop-zone');
+        const materialsSourceContainer = document.getElementById('materialsSource');
+        const runButton = document.getElementById('runButton');
+        const resetButton = document.getElementById('resetButton');
+        const showAnswerButton = document.getElementById('showAnswerButton');
+        const feedbackBox = document.getElementById('feedbackBox');
+        const filteredWaterDiv = document.getElementById('filteredWater');
+        const waterQualityText = document.getElementById('waterQualityText');
+
+        // Store the state of materials in drop zones
+        let filterLayers = {
+            top: null,    // Expected: charcoal
+            middle: null, // Expected: sand
+            bottom: null  // Expected: gravel
+        };
+        const correctOrder = {
+            top: 'charcoal',
+            middle: 'sand',
+            bottom: 'gravel'
+        };
+
+        // --- Drag and Drop Functionality ---
+        draggables.forEach(draggable => {
+            // Touch events for mobile
+            draggable.addEventListener('touchstart', handleTouchStart, { passive: false });
+            draggable.addEventListener('touchmove', handleTouchMove, { passive: false });
+            draggable.addEventListener('touchend', handleTouchEnd);
+            
+            // Mouse events for desktop
+            draggable.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData('text/plain', draggable.id);
+                e.dataTransfer.effectAllowed = 'move';
+                setTimeout(() => draggable.classList.add('opacity-50'), 0); // Visual feedback
+            });
+
+            draggable.addEventListener('dragend', () => {
+                draggable.classList.remove('opacity-50');
+            });
+        });
+
+        let currentlyDraggedElement = null; // For touch events
+
+        function handleTouchStart(e) {
+            e.preventDefault(); // Prevent scrolling while dragging
+            currentlyDraggedElement = e.target.closest('.draggable');
+            if (!currentlyDraggedElement) return;
+
+            currentlyDraggedElement.style.position = 'absolute'; // Allow it to move freely
+            currentlyDraggedElement.style.zIndex = '1000';
+            currentlyDraggedElement.classList.add('opacity-75'); // Visual feedback
+            
+            // Initial position for touch move
+            let touch = e.touches[0];
+            currentlyDraggedElement.initialX = touch.clientX - currentlyDraggedElement.offsetWidth / 2;
+            currentlyDraggedElement.initialY = touch.clientY - currentlyDraggedElement.offsetHeight / 2;
+            moveElement(currentlyDraggedElement, touch.clientX, touch.clientY);
+        }
+
+        function handleTouchMove(e) {
+            if (!currentlyDraggedElement) return;
+            e.preventDefault();
+            let touch = e.touches[0];
+            moveElement(currentlyDraggedElement, touch.clientX, touch.clientY);
+
+            // Highlight drop zones
+            dropZones.forEach(zone => {
+                const rect = zone.getBoundingClientRect();
+                if (touch.clientX > rect.left && touch.clientX < rect.right &&
+                    touch.clientY > rect.top && touch.clientY < rect.bottom) {
+                    zone.classList.add('drag-over');
+                } else {
+                    zone.classList.remove('drag-over');
+                }
+            });
+        }
+        
+        function moveElement(element, x, y) {
+            // Center the element under the finger/cursor
+            element.style.left = x - element.offsetWidth / 2 + 'px';
+            element.style.top = y - element.offsetHeight / 2 + 'px';
+        }
+
+
+        function handleTouchEnd(e) {
+            if (!currentlyDraggedElement) return;
+            
+            let droppedOnZone = null;
+            dropZones.forEach(zone => {
+                zone.classList.remove('drag-over');
+                const rect = zone.getBoundingClientRect();
+                // Use changedTouches as e.touches will be empty
+                let touch = e.changedTouches[0]; 
+                if (touch.clientX > rect.left && touch.clientX < rect.right &&
+                    touch.clientY > rect.top && touch.clientY < rect.bottom) {
+                    droppedOnZone = zone;
+                }
+            });
+
+            if (droppedOnZone) {
+                handleDrop(droppedOnZone, currentlyDraggedElement.id);
+            } else {
+                // If not dropped on a valid zone, return to source
+                materialsSourceContainer.appendChild(currentlyDraggedElement);
+            }
+            
+            currentlyDraggedElement.style.position = 'static'; // Reset position
+            currentlyDraggedElement.style.zIndex = 'auto';
+            currentlyDraggedElement.classList.remove('opacity-75');
+            currentlyDraggedElement = null;
+        }
+
+
+        dropZones.forEach(zone => {
+            zone.addEventListener('dragover', (e) => {
+                e.preventDefault(); // Necessary to allow dropping
+                e.dataTransfer.dropEffect = 'move';
+                zone.classList.add('drag-over');
+            });
+
+            zone.addEventListener('dragleave', () => {
+                zone.classList.remove('drag-over');
+            });
+
+            zone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                zone.classList.remove('drag-over');
+                const id = e.dataTransfer.getData('text/plain');
+                handleDrop(zone, id);
+            });
+        });
+
+        function handleDrop(dropZone, draggableId) {
+            const draggableElement = document.getElementById(draggableId);
+            if (!draggableElement) return;
+
+            const layer = dropZone.dataset.layer;
+            const materialType = draggableElement.dataset.material;
+
+            // If the drop zone already has a material, move it back to source
+            if (dropZone.children.length > 0 && dropZone.children[0].classList.contains('material-item')) {
+                const existingMaterialElement = dropZone.children[0];
+                materialsSourceContainer.appendChild(existingMaterialElement);
+                 // Find and clear the old material from filterLayers
+                for (const key in filterLayers) {
+                    if (filterLayers[key] === existingMaterialElement.dataset.material) {
+                        filterLayers[key] = null;
+                        break;
+                    }
+                }
+            }
+            
+            // If the dragged material was previously in another drop zone, clear that zone
+            for (const key in filterLayers) {
+                if (filterLayers[key] === materialType) {
+                    filterLayers[key] = null;
+                    const prevDropZone = document.querySelector(`.drop-zone[data-layer='${key}']`);
+                    if (prevDropZone && prevDropZone.children[0] && prevDropZone.children[0].dataset.material === materialType) {
+                         prevDropZone.innerHTML = `<span class="material-placeholder">${key.charAt(0).toUpperCase() + key.slice(1)} Layer</span>`;
+                    }
+                }
+            }
+
+            // Place the new material
+            dropZone.innerHTML = ''; // Clear placeholder
+            dropZone.appendChild(draggableElement);
+            draggableElement.classList.remove('opacity-50'); // From dragstart
+            draggableElement.style.position = 'static'; // Reset for layout
+            draggableElement.style.width = '100%'; // Fit into drop zone
+            draggableElement.style.height = '100%';
+            draggableElement.classList.add('material-item'); // General class for items in dropzone
+            draggableElement.classList.remove('draggable'); // Can't be dragged from dropzone for simplicity
+
+            filterLayers[layer] = materialType;
+            updateRunButtonState();
+        }
+
+        // --- Simulation Logic ---
+        runButton.addEventListener('click', () => {
+            // Check if all layers are filled
+            if (Object.values(filterLayers).some(val => val === null)) {
+                feedbackBox.textContent = "Please fill all filter layers before running.";
+                feedbackBox.className = 'feedback-box incorrect';
+                return;
+            }
+
+            // Determine water quality
+            const isCorrect = filterLayers.top === correctOrder.top &&
+                              filterLayers.middle === correctOrder.middle &&
+                              filterLayers.bottom === correctOrder.bottom;
+
+            // Visual feedback for water
+            filteredWaterDiv.classList.remove('clean-water', 'dirty-water', 'cloudy-water');
+            waterQualityText.classList.add('hidden'); // Hide text initially
+
+            // Animate water filling
+            filteredWaterDiv.style.height = '0%';
+            setTimeout(() => { // Start animation after a brief delay
+                filteredWaterDiv.style.height = '100%';
+                if (isCorrect) {
+                    filteredWaterDiv.classList.add('clean-water');
+                    feedbackBox.textContent = "Correct! The water is clean. Great job! Charcoal adsorbs impurities, sand filters fine particles, and gravel supports the layers and filters larger debris.";
+                    feedbackBox.className = 'feedback-box correct';
+                    waterQualityText.textContent = "Clean Water";
+                } else {
+                    // Check for partially correct (e.g., one material in right place)
+                    let correctCount = 0;
+                    if (filterLayers.top === correctOrder.top) correctCount++;
+                    if (filterLayers.middle === correctOrder.middle) correctCount++;
+                    if (filterLayers.bottom === correctOrder.bottom) correctCount++;
+
+                    if (correctCount > 0 && correctCount < 3) {
+                        filteredWaterDiv.classList.add('cloudy-water');
+                        feedbackBox.textContent = "Incorrect. Some materials might be in the right place, but the order isn't perfect. Try reordering. Hint: Think about what each material does.";
+                        waterQualityText.textContent = "Cloudy Water";
+                    } else {
+                        filteredWaterDiv.classList.add('dirty-water');
+                        feedbackBox.textContent = "Incorrect. The water is still dirty. Try reordering the materials. Hint: Coarser materials usually go at the bottom.";
+                        waterQualityText.textContent = "Dirty Water";
+                    }
+                    feedbackBox.className = 'feedback-box incorrect';
+                }
+                waterQualityText.classList.remove('hidden');
+            }, 100);
+        });
+
+        // --- Reset Button ---
+        resetButton.addEventListener('click', () => {
+            filterLayers = { top: null, middle: null, bottom: null };
+
+            dropZones.forEach(zone => {
+                const layerName = zone.dataset.layer;
+                zone.innerHTML = `<span class="material-placeholder">${layerName.charAt(0).toUpperCase() + layerName.slice(1)} Layer</span>`;
+            });
+
+            // Move all material elements back to the source container
+            const materialElements = [
+                document.getElementById('draggableGravel'),
+                document.getElementById('draggableSand'),
+                document.getElementById('draggableCharcoal')
+            ];
+            materialElements.forEach(el => {
+                el.style.position = 'static'; // Reset style if it was being touch-dragged
+                el.style.width = ''; // Reset width
+                el.style.height = ''; // Reset height
+                el.classList.remove('material-item', 'opacity-50', 'opacity-75');
+                el.classList.add('draggable'); // Make it draggable again
+                materialsSourceContainer.appendChild(el);
+            });
+            
+            // Re-attach drag listeners if they were removed (though current setup doesn't remove them)
+            // This is more of a safeguard if logic changes.
+            draggables.forEach(draggable => {
+                 if (!draggable.classList.contains('draggable')) { // Should not happen with current logic
+                    draggable.classList.add('draggable');
+                 }
+            });
+
+
+            feedbackBox.textContent = "Drag materials and run the filtration!";
+            feedbackBox.className = 'feedback-box';
+            filteredWaterDiv.style.height = '0%';
+            filteredWaterDiv.className = 'water'; // Reset water classes
+            waterQualityText.classList.add('hidden');
+            updateRunButtonState();
+        });
+
+        // --- Show Answer Button ---
+        showAnswerButton.addEventListener('click', () => {
+            // Reset first to clear any existing items and move them to source
+            resetButton.click();
+
+            // Get material elements
+            const gravel = document.getElementById('draggableGravel');
+            const sand = document.getElementById('draggableSand');
+            const charcoal = document.getElementById('draggableCharcoal');
+
+            // Place them in correct drop zones
+            const dropZoneTop = document.getElementById('dropZoneTop');
+            const dropZoneMiddle = document.getElementById('dropZoneMiddle');
+            const dropZoneBottom = document.getElementById('dropZoneBottom');
+
+            // Simulate dropping them correctly
+            handleDrop(dropZoneTop, charcoal.id);
+            handleDrop(dropZoneMiddle, sand.id);
+            handleDrop(dropZoneBottom, gravel.id);
+            
+            feedbackBox.innerHTML = `
+                <p class="font-semibold">Correct Order Displayed:</p>
+                <ul class="list-disc list-inside text-left mt-1">
+                    <li><strong>Top Layer (Charcoal):</strong> Adsorbs chemicals, removes odors and colors.</li>
+                    <li><strong>Middle Layer (Sand):</strong> Filters out smaller suspended particles.</li>
+                    <li><strong>Bottom Layer (Gravel):</strong> Filters larger debris and supports the sand layer, allowing water to drain.</li>
+                </ul>
+            `;
+            feedbackBox.className = 'feedback-box'; // Neutral feedback style
+            updateRunButtonState(); // Enable run button
+            runButton.click(); // Optionally run filtration to show clean water
+        });
+
+        // --- Utility Functions ---
+        function updateRunButtonState() {
+            const allLayersFilled = Object.values(filterLayers).every(val => val !== null);
+            runButton.disabled = !allLayersFilled;
+            runButton.classList.toggle('opacity-50', !allLayersFilled);
+            runButton.classList.toggle('cursor-not-allowed', !allLayersFilled);
+        }
+
+        // Initial state
+        updateRunButtonState();
+        // Call reset on load to ensure draggable items are in the source container initially
+        // and listeners are correctly set up.
+        document.addEventListener('DOMContentLoaded', () => {
+            resetButton.click(); // Ensures initial setup is correct
+        });
+
+    </script>
+</body>
+</html>
